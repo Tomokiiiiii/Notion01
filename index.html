@@ -262,21 +262,28 @@
   .copy-btn:hover { opacity: 0.85; }
   .copy-btn.copied { background: var(--accent3); }
 
+  .copy-note {
+    font-size: 11px;
+    color: var(--text-muted);
+    padding: 8px 18px 0;
+  }
+
   .copy-preview {
+    display: block;
+    width: 100%;
     padding: 16px 18px;
     font-family: 'DM Mono', monospace;
     font-size: 12px;
     line-height: 1.9;
     color: var(--text);
-    white-space: pre-wrap;
-    word-break: break-all;
+    background: transparent;
+    border: none;
+    resize: none;
+    outline: none;
+    white-space: pre;
     max-height: 220px;
     overflow-y: auto;
   }
-  .copy-preview .label { color: var(--text-muted); }
-  .copy-preview .v-rent { color: var(--rent-color); }
-  .copy-preview .v-util { color: var(--utility-color); }
-  .copy-preview .v-transfer { color: var(--transfer-color); font-weight: 500; }
 
   /* delete button */
   .del-btn {
@@ -349,9 +356,10 @@
 <div class="copy-section">
   <div class="copy-header">
     <span class="copy-header-title">詰め用テキスト（直近月）</span>
-    <button class="copy-btn" id="copy-btn" onclick="copyText()">コピー</button>
+    <button class="copy-btn" id="copy-btn" onclick="selectAll()">全選択</button>
   </div>
-  <div class="copy-preview" id="copy-preview">月を入力すると内訳が表示されます</div>
+  <p class="copy-note">↑「全選択」→ Ctrl+C（Mac: ⌘+C）でコピーできます</p>
+  <textarea class="copy-preview" id="copy-preview" readonly rows="14">月を入力すると内訳が表示されます</textarea>
 </div>
 
 <script>
@@ -478,7 +486,7 @@ function updateCopyPreview() {
     ``,
     `💸 振込額 → ${transfer.toLocaleString()} 円`,
   ];
-  document.getElementById('copy-preview').textContent = lines.join('\n');
+  document.getElementById('copy-preview').value = lines.join('\n');
 }
 
 function deleteRow(id) {
@@ -488,17 +496,17 @@ function deleteRow(id) {
   recalcAll();
 }
 
-function copyText() {
-  const text = document.getElementById('copy-preview').textContent;
-  navigator.clipboard.writeText(text).then(() => {
-    const btn = document.getElementById('copy-btn');
-    btn.textContent = 'コピー完了 ✓';
-    btn.classList.add('copied');
-    setTimeout(() => {
-      btn.textContent = 'コピー';
-      btn.classList.remove('copied');
-    }, 2000);
-  });
+function selectAll() {
+  const ta = document.getElementById('copy-preview');
+  ta.select();
+  ta.setSelectionRange(0, 99999);
+  const btn = document.getElementById('copy-btn');
+  btn.textContent = '選択済 ✓';
+  btn.classList.add('copied');
+  setTimeout(() => {
+    btn.textContent = '全選択';
+    btn.classList.remove('copied');
+  }, 2000);
 }
 
 // Init with current month
