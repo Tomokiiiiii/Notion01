@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>家賃振込計算ツール</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #22263a;
+    --border: #2e3350;
+    --accent: #5b73ff;
+    --accent2: #ff6b6b;
+    --accent3: #43d9ad;
+    --text: #e8eaf6;
+    --text-muted: #6e7398;
+    --text-dim: #3d4166;
+    --rent-color: #ff6b6b;
+    --utility-color: #5b73ff;
+    --transfer-color: #43d9ad;
+  }
+
+  body {
+    font-family: 'Noto Sans JP', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 32px 20px 60px;
+  }
+
+  .header {
+    text-align: center;
+    margin-bottom: 40px;
+  }
+  .header h1 {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--text);
+    margin-bottom: 6px;
+  }
+  .header p {
+    font-size: 12px;
+    color: var(--text-muted);
+    letter-spacing: 0.05em;
+  }
+  .dot { color: var(--accent); }
+
+  /* ─── FORMULA BANNER ─── */
+  .formula-banner {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-bottom: 32px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .formula-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-family: 'DM Mono', monospace;
+    letter-spacing: 0.1em;
+    white-space: nowrap;
+  }
+  .formula-eq {
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    color: var(--text);
+  }
+  .formula-eq .rent { color: var(--rent-color); }
+  .formula-eq .util { color: var(--utility-color); }
+  .formula-eq .result { color: var(--transfer-color); font-weight: 500; }
+
+  /* ─── TABLE WRAPPER ─── */
+  .table-wrapper {
+    overflow-x: auto;
+    border-radius: 14px;
+    border: 1px solid var(--border);
+    margin-bottom: 32px;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 700px;
+  }
+  thead tr {
+    background: var(--surface2);
+  }
+  th {
+    padding: 13px 14px;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    color: var(--text-muted);
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  th.col-month { text-align: left; padding-left: 20px; }
+  th.col-rent { color: var(--rent-color); }
+  th.col-util { color: var(--utility-color); }
+  th.col-transfer { color: var(--transfer-color); }
+
+  tbody tr {
+    border-bottom: 1px solid var(--border);
+    transition: background 0.15s;
+  }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: rgba(91,115,255,0.04); }
+
+  td {
+    padding: 12px 14px;
+    text-align: center;
+    vertical-align: middle;
+  }
+  td.col-month {
+    text-align: left;
+    padding-left: 20px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+    white-space: nowrap;
+  }
+
+  /* month input */
+  .month-input {
+    background: transparent;
+    border: none;
+    color: var(--text);
+    font-family: 'Noto Sans JP', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    width: 90px;
+    outline: none;
+    cursor: pointer;
+  }
+
+  /* number inputs */
+  .num-input {
+    background: var(--surface2);
+    border: 1px solid transparent;
+    border-radius: 7px;
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    text-align: right;
+    padding: 6px 10px;
+    width: 110px;
+    outline: none;
+    transition: border-color 0.2s, background 0.2s;
+    -moz-appearance: textfield;
+  }
+  .num-input::-webkit-outer-spin-button,
+  .num-input::-webkit-inner-spin-button { -webkit-appearance: none; }
+  .num-input:focus {
+    border-color: var(--accent);
+    background: var(--surface);
+  }
+  .num-input.rent-input:focus { border-color: var(--rent-color); }
+  .num-input.util-input:focus { border-color: var(--utility-color); }
+
+  /* transfer display */
+  .transfer-cell {
+    font-family: 'DM Mono', monospace;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--transfer-color);
+    white-space: nowrap;
+  }
+  .transfer-cell.zero { color: var(--text-dim); }
+
+  /* ─── ADD ROW BUTTON ─── */
+  .add-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 13px;
+    background: transparent;
+    border: 1px dashed var(--border);
+    border-radius: 10px;
+    color: var(--text-muted);
+    font-family: 'Noto Sans JP', sans-serif;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-bottom: 32px;
+  }
+  .add-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(91,115,255,0.05);
+  }
+
+  /* ─── SUMMARY CARDS ─── */
+  .summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 14px;
+    margin-bottom: 32px;
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 20px;
+  }
+  .card-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    letter-spacing: 0.1em;
+    margin-bottom: 8px;
+  }
+  .card-value {
+    font-family: 'DM Mono', monospace;
+    font-size: 20px;
+    font-weight: 500;
+  }
+  .card-value.rent { color: var(--rent-color); }
+  .card-value.util { color: var(--utility-color); }
+  .card-value.transfer { color: var(--transfer-color); }
+
+  /* ─── COPY PANEL ─── */
+  .copy-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .copy-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+  }
+  .copy-header-title {
+    font-size: 12px;
+    color: var(--text-muted);
+    letter-spacing: 0.08em;
+  }
+  .copy-btn {
+    background: var(--accent);
+    border: none;
+    border-radius: 7px;
+    color: #fff;
+    font-family: 'Noto Sans JP', sans-serif;
+    font-size: 12px;
+    padding: 6px 14px;
+    cursor: pointer;
+    transition: opacity 0.2s;
+    letter-spacing: 0.05em;
+  }
+  .copy-btn:hover { opacity: 0.85; }
+  .copy-btn.copied { background: var(--accent3); }
+
+  .copy-preview {
+    padding: 16px 18px;
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    line-height: 1.9;
+    color: var(--text);
+    white-space: pre-wrap;
+    word-break: break-all;
+    max-height: 220px;
+    overflow-y: auto;
+  }
+  .copy-preview .label { color: var(--text-muted); }
+  .copy-preview .v-rent { color: var(--rent-color); }
+  .copy-preview .v-util { color: var(--utility-color); }
+  .copy-preview .v-transfer { color: var(--transfer-color); font-weight: 500; }
+
+  /* delete button */
+  .del-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 1;
+    padding: 4px 6px;
+    border-radius: 5px;
+    transition: color 0.15s, background 0.15s;
+  }
+  .del-btn:hover { color: var(--accent2); background: rgba(255,107,107,0.08); }
+
+  @media (max-width: 560px) {
+    .summary { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>家賃振込<span class="dot">・</span>計算ツール</h1>
+  <p>妻口座引落 → 自分の振込額を自動計算</p>
+</div>
+
+<div class="formula-banner">
+  <span class="formula-label">FORMULA</span>
+  <span class="formula-eq">
+    振込額 ＝ <span class="rent">家賃 ÷ 2</span> ー <span class="util">( 電気代 ＋ ガス代 ＋ 水道代 ) ÷ 2</span>
+    ＝ <span class="result">振込額</span>
+  </span>
+</div>
+
+<div class="table-wrapper">
+  <table id="main-table">
+    <thead>
+      <tr>
+        <th class="col-month">月</th>
+        <th class="col-rent">家賃</th>
+        <th class="col-util">電気代</th>
+        <th class="col-util">ガス代</th>
+        <th class="col-util">水道代</th>
+        <th class="col-transfer">振込額</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody id="table-body"></tbody>
+  </table>
+</div>
+
+<button class="add-btn" onclick="addRow()">＋ 月を追加</button>
+
+<div class="summary" id="summary-cards">
+  <div class="card">
+    <div class="card-label">直近の家賃</div>
+    <div class="card-value rent" id="s-rent">—</div>
+  </div>
+  <div class="card">
+    <div class="card-label">直近の光熱費合計</div>
+    <div class="card-value util" id="s-util">—</div>
+  </div>
+  <div class="card">
+    <div class="card-label">直近の振込額</div>
+    <div class="card-value transfer" id="s-transfer">—</div>
+  </div>
+</div>
+
+<div class="copy-section">
+  <div class="copy-header">
+    <span class="copy-header-title">詰め用テキスト（直近月）</span>
+    <button class="copy-btn" id="copy-btn" onclick="copyText()">コピー</button>
+  </div>
+  <div class="copy-preview" id="copy-preview">月を入力すると内訳が表示されます</div>
+</div>
+
+<script>
+let rows = [];
+let rowCounter = 0;
+
+function getNextMonth() {
+  const today = new Date();
+  return `${today.getFullYear()}年${today.getMonth() + 1}月`;
+}
+
+function addRow(data) {
+  const id = ++rowCounter;
+  const defaultMonth = data?.month || getNextMonth();
+  const r = {
+    id,
+    month: data?.month || defaultMonth,
+    rent: data?.rent ?? 151440,
+    elec: data?.elec ?? 0,
+    gas: data?.gas ?? 0,
+    water: data?.water ?? 0,
+  };
+  rows.push(r);
+  renderRow(r);
+  recalcAll();
+}
+
+function renderRow(r) {
+  const tbody = document.getElementById('table-body');
+  const tr = document.createElement('tr');
+  tr.id = `row-${r.id}`;
+  tr.innerHTML = `
+    <td class="col-month">
+      <input class="month-input" type="text" value="${r.month}"
+        onchange="updateField(${r.id},'month',this.value)" />
+    </td>
+    <td>
+      <input class="num-input rent-input" type="number" value="${r.rent}"
+        onchange="updateField(${r.id},'rent',+this.value)"
+        oninput="updateField(${r.id},'rent',+this.value)" />
+    </td>
+    <td>
+      <input class="num-input util-input" type="number" value="${r.elec}"
+        onchange="updateField(${r.id},'elec',+this.value)"
+        oninput="updateField(${r.id},'elec',+this.value)" placeholder="0" />
+    </td>
+    <td>
+      <input class="num-input util-input" type="number" value="${r.gas}"
+        onchange="updateField(${r.id},'gas',+this.value)"
+        oninput="updateField(${r.id},'gas',+this.value)" placeholder="0" />
+    </td>
+    <td>
+      <input class="num-input util-input" type="number" value="${r.water}"
+        onchange="updateField(${r.id},'water',+this.value)"
+        oninput="updateField(${r.id},'water',+this.value)" placeholder="0" />
+    </td>
+    <td class="transfer-cell zero" id="transfer-${r.id}">—</td>
+    <td>
+      <button class="del-btn" onclick="deleteRow(${r.id})" title="削除">×</button>
+    </td>
+  `;
+  tbody.appendChild(tr);
+}
+
+function updateField(id, field, value) {
+  const r = rows.find(x => x.id === id);
+  if (!r) return;
+  r[field] = value;
+  recalcAll();
+}
+
+function calcTransfer(r) {
+  return Math.round(r.rent / 2 - (r.elec + r.gas + r.water) / 2);
+}
+
+function fmt(n) {
+  return n.toLocaleString('ja-JP') + ' 円';
+}
+
+function recalcAll() {
+  rows.forEach(r => {
+    const t = calcTransfer(r);
+    const cell = document.getElementById(`transfer-${r.id}`);
+    if (cell) {
+      cell.textContent = fmt(t);
+      cell.className = t === 0 ? 'transfer-cell zero' : 'transfer-cell';
+    }
+  });
+  updateSummary();
+  updateCopyPreview();
+}
+
+function updateSummary() {
+  if (rows.length === 0) return;
+  const last = rows[rows.length - 1];
+  const util = last.elec + last.gas + last.water;
+  const transfer = calcTransfer(last);
+  document.getElementById('s-rent').textContent = fmt(last.rent);
+  document.getElementById('s-util').textContent = fmt(util);
+  document.getElementById('s-transfer').textContent = fmt(transfer);
+}
+
+function updateCopyPreview() {
+  if (rows.length === 0) return;
+  const last = rows[rows.length - 1];
+  const util = last.elec + last.gas + last.water;
+  const transfer = calcTransfer(last);
+
+  const lines = [
+    `📅 ${last.month} 振込内訳`,
+    ``,
+    `【妻口座引落】`,
+    `  家賃         ${last.rent.toLocaleString()} 円`,
+    ``,
+    `【私口座支払済】`,
+    `  電気代       ${last.elec.toLocaleString()} 円`,
+    `  ガス代       ${last.gas.toLocaleString()} 円`,
+    `  水道代       ${last.water.toLocaleString()} 円`,
+    `  光熱費合計   ${util.toLocaleString()} 円`,
+    ``,
+    `【計算式】`,
+    `  家賃 ÷ 2     ${(last.rent / 2).toLocaleString()} 円`,
+    `  光熱費 ÷ 2  ▲${(util / 2).toLocaleString()} 円`,
+    ``,
+    `💸 振込額 → ${transfer.toLocaleString()} 円`,
+  ];
+  document.getElementById('copy-preview').textContent = lines.join('\n');
+}
+
+function deleteRow(id) {
+  rows = rows.filter(r => r.id !== id);
+  const el = document.getElementById(`row-${id}`);
+  if (el) el.remove();
+  recalcAll();
+}
+
+function copyText() {
+  const text = document.getElementById('copy-preview').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById('copy-btn');
+    btn.textContent = 'コピー完了 ✓';
+    btn.classList.add('copied');
+    setTimeout(() => {
+      btn.textContent = 'コピー';
+      btn.classList.remove('copied');
+    }, 2000);
+  });
+}
+
+// Init with current month
+addRow();
+</script>
+</body>
+</html>
